@@ -1,6 +1,6 @@
 # Overview
 
-CodeAssist AI is an intelligent code editor application that combines modern web development tools with AI-powered code assistance. The application provides a comprehensive IDE-like experience with features including syntax highlighting, file management, AI chat integration, and terminal functionality. It supports multiple AI models (OpenAI GPT-4o, Anthropic Claude Sonnet 4, Google Gemini 2.5 Pro/Flash) for code generation, explanation, and assistance.
+CodeAssist AI is a comprehensive, AI-powered code editor application that provides a full IDE experience with advanced AI assistance capabilities. The platform features syntax highlighting, intelligent file management, multi-model AI integration, terminal functionality, and productivity-enhancing tools like quick actions, code suggestions, keyboard shortcuts, and a command palette. It supports 7 different AI models for code generation, explanation, optimization, and real-time assistance.
 
 # User Preferences
 
@@ -55,8 +55,9 @@ Preferred communication style: Simple, everyday language.
   - DeepSeek Coder (specialized for code generation)
   - Llama 3.3 (open source alternative via Together API)
 - **API Abstraction**: Service layer abstracts provider-specific implementations
-- **Features**: Code generation, explanation, chat-based assistance, context-aware suggestions, and direct code editing
-- **Direct Code Editing**: All AI models can now write directly to files and make real-time code modifications
+- **Features**: Code generation, explanation, chat-based assistance, context-aware suggestions, direct code editing, quick actions, and intelligent suggestions
+- **Direct Code Editing**: All AI models can write directly to files and make real-time code modifications
+- **Productivity Tools**: Quick actions (optimize, refactor, add comments, fix bugs), AI code suggestions, file templates, keyboard shortcuts, command palette, and mini-map
 - **Default Model**: Gemini 2.5 Flash for optimal performance with user's API key
 
 # External Dependencies

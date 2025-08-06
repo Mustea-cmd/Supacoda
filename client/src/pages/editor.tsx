@@ -1,10 +1,16 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import FileExplorer from "@/components/editor/FileExplorer";
 import MonacoEditor from "@/components/editor/MonacoEditor";
 import AIChat from "@/components/editor/AIChat";
 import AICodeEditor from "@/components/editor/AICodeEditor";
+import QuickActions from "@/components/editor/QuickActions";
+import AICodeSuggestions from "@/components/editor/AICodeSuggestions";
+import FileTemplates from "@/components/editor/FileTemplates";
+import KeyboardShortcuts from "@/components/editor/KeyboardShortcuts";
+import CommandPalette from "@/components/editor/CommandPalette";
+import MiniMap from "@/components/editor/MiniMap";
 import AIModelSelector from "@/components/editor/AIModelSelector";
 import StatusBar from "@/components/editor/StatusBar";
 import Terminal from "@/components/editor/Terminal";
@@ -15,6 +21,8 @@ export default function Editor() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>("gemini-2.5-flash");
   const [showTerminal, setShowTerminal] = useState(true);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: projects, isLoading: projectsLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -38,6 +46,31 @@ export default function Editor() {
       setSelectedFile(files[0]);
     }
   }, [files, selectedFile]);
+
+  const handleCommand = (commandId: string) => {
+    switch (commandId) {
+      case "new-file":
+        // Trigger file creation
+        break;
+      case "toggle-terminal":
+        setShowTerminal(!showTerminal);
+        break;
+      case "format-code":
+        // Trigger AI code formatting
+        break;
+      case "ai-optimize":
+        // Trigger AI optimization
+        break;
+      case "ai-explain":
+        // Trigger AI explanation
+        break;
+      case "ai-refactor":
+        // Trigger AI refactoring
+        break;
+      default:
+        break;
+    }
+  };
 
   if (projectsLoading) {
     return (
@@ -96,6 +129,18 @@ export default function Editor() {
                   loading={filesLoading}
                 />
               </div>
+
+              {/* File Templates */}
+              <div className="border-t border-slate-700">
+                <FileTemplates
+                  project={selectedProject}
+                  selectedModel={selectedModel}
+                  onFileCreated={() => {
+                    // Refresh files list
+                    queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProject?.id}/files`] });
+                  }}
+                />
+              </div>
             </div>
           </ResizablePanel>
 
@@ -141,9 +186,37 @@ export default function Editor() {
                   }
                 }}
               />
+
+              {/* Quick Actions */}
+              <div className="border-t border-slate-700">
+                <QuickActions
+                  file={selectedFile}
+                  selectedModel={selectedModel}
+                  projectId={selectedProject?.id || ""}
+                  onCodeUpdate={(newContent) => {
+                    if (selectedFile) {
+                      setSelectedFile({ ...selectedFile, content: newContent });
+                    }
+                  }}
+                />
+              </div>
+
+              {/* AI Code Suggestions */}
+              <div className="border-t border-slate-700">
+                <AICodeSuggestions
+                  file={selectedFile}
+                  selectedModel={selectedModel}
+                  projectId={selectedProject?.id || ""}
+                  onCodeUpdate={(newContent) => {
+                    if (selectedFile) {
+                      setSelectedFile({ ...selectedFile, content: newContent });
+                    }
+                  }}
+                />
+              </div>
               
               {/* AI Chat */}
-              <div className="flex-1 min-h-0">
+              <div className="flex-1 min-h-0 border-t border-slate-700">
                 <AIChat
                   selectedModel={selectedModel}
                   selectedFile={selectedFile}
@@ -161,6 +234,32 @@ export default function Editor() {
         selectedModel={selectedModel}
         onToggleTerminal={() => setShowTerminal(!showTerminal)}
         terminalVisible={showTerminal}
+      />
+
+      {/* Keyboard Shortcuts */}
+      <KeyboardShortcuts
+        onNewFile={() => {}}
+        onSaveFile={() => {}}
+        onToggleTerminal={() => setShowTerminal(!showTerminal)}
+        onQuickCommand={() => setShowCommandPalette(true)}
+        onAIAssist={() => {}}
+        onFormatCode={() => {}}
+      />
+
+      {/* Command Palette */}
+      <CommandPalette
+        open={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        onExecuteCommand={handleCommand}
+      />
+
+      {/* Mini Map */}
+      <MiniMap
+        file={selectedFile}
+        onLineClick={(lineNumber) => {
+          // Navigate to line in editor
+          console.log(`Navigate to line ${lineNumber}`);
+        }}
       />
     </div>
   );
