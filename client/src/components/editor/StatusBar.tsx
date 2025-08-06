@@ -19,6 +19,7 @@ export default function StatusBar({ selectedFile, selectedModel, onToggleTermina
     const modelNames: Record<string, string> = {
       "gemini-2.5-flash": "Gemini 2.5 Flash",
       "gemini-2.5-pro": "Gemini 2.5 Pro",
+      "amazon-q-developer": "Amazon Q Developer",
       "copilot-gpt-4": "Microsoft Copilot",
       "deepseek-coder": "DeepSeek Coder",
       "llama-3.3": "Llama 3.3",
