@@ -76,7 +76,7 @@ export default function FileTemplates({ project, selectedModel, onFileCreated }:
       // Then use AI to generate the actual content
       const aiResponse = await apiRequest(`/api/ai/edit-code`, "POST", {
         model: selectedModel,
-        fileId: fileResponse.id,
+        fileId: (fileResponse as any).id,
         instruction,
         projectId: project?.id,
       });

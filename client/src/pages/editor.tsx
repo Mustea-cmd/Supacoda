@@ -35,14 +35,14 @@ export default function Editor() {
 
   // Select first project by default
   useEffect(() => {
-    if (projects && projects.length > 0 && !selectedProject) {
+    if (projects && Array.isArray(projects) && projects.length > 0 && !selectedProject) {
       setSelectedProject(projects[0]);
     }
   }, [projects, selectedProject]);
 
   // Select first file by default
   useEffect(() => {
-    if (files && files.length > 0 && !selectedFile) {
+    if (files && Array.isArray(files) && files.length > 0 && !selectedFile) {
       setSelectedFile(files[0]);
     }
   }, [files, selectedFile]);
@@ -123,7 +123,7 @@ export default function Editor() {
               <div className="flex-1 overflow-auto">
                 <FileExplorer
                   project={selectedProject}
-                  files={files || []}
+                  files={Array.isArray(files) ? files : []}
                   selectedFile={selectedFile}
                   onFileSelect={setSelectedFile}
                   loading={filesLoading}
