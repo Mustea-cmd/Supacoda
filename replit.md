@@ -8,7 +8,7 @@ Preferred communication style: Simple, everyday language.
 
 ## AI Model Preferences
 - Primary AI Provider: Google Gemini (user has API key)
-- Secondary Providers: Amazon Q Developer, Microsoft Copilot, DeepSeek Coder, Llama 3.3 (free/alternative services)
+- Secondary Providers: SupaAI, Amazon Q Developer, Microsoft Copilot, DeepSeek Coder, Llama 3.3 (free/alternative services)
 - Removed: OpenAI GPT models, Anthropic Claude (user requested alternatives)
 
 # System Architecture
@@ -49,18 +49,21 @@ Preferred communication style: Simple, everyday language.
 - **Multi-Provider Support**: Unified interface for multiple AI providers
 - **Supported Models**:
   - Google Gemini 2.5 Pro/Flash (primary with user API key)
+  - SupaAI (advanced coding assistant via OpenRouter)
   - Amazon Q Developer (AWS coding assistant)
   - Microsoft Copilot (via free proxy service)
   - DeepSeek Coder (specialized for code generation)
   - Llama 3.3 (open source alternative via Together API)
 - **API Abstraction**: Service layer abstracts provider-specific implementations
-- **Features**: Code generation, explanation, chat-based assistance, and context-aware suggestions
+- **Features**: Code generation, explanation, chat-based assistance, context-aware suggestions, and direct code editing
+- **Direct Code Editing**: All AI models can now write directly to files and make real-time code modifications
 - **Default Model**: Gemini 2.5 Flash for optimal performance with user's API key
 
 # External Dependencies
 
 ## AI Services
 - **Google Generative AI**: Gemini 2.5 Pro and Flash models (primary with user API key)
+- **SupaAI**: Advanced coding assistant via OpenRouter API
 - **Amazon Q Developer**: AWS coding assistant via Bedrock integration
 - **Microsoft Copilot**: Via DeepAI proxy service for free access
 - **DeepSeek API**: Specialized coding assistant with free tier

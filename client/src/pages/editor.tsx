@@ -4,6 +4,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import FileExplorer from "@/components/editor/FileExplorer";
 import MonacoEditor from "@/components/editor/MonacoEditor";
 import AIChat from "@/components/editor/AIChat";
+import AICodeEditor from "@/components/editor/AICodeEditor";
 import AIModelSelector from "@/components/editor/AIModelSelector";
 import StatusBar from "@/components/editor/StatusBar";
 import Terminal from "@/components/editor/Terminal";
@@ -126,13 +127,30 @@ export default function Editor() {
 
           <ResizableHandle />
 
-          {/* AI Chat Panel */}
+          {/* AI Panel */}
           <ResizablePanel defaultSize={20} minSize={15}>
-            <AIChat
-              selectedModel={selectedModel}
-              selectedFile={selectedFile}
-              projectId={selectedProject?.id}
-            />
+            <div className="h-full bg-slate-800 border-l border-slate-700 flex flex-col">
+              {/* AI Code Editor */}
+              <AICodeEditor
+                file={selectedFile}
+                selectedModel={selectedModel}
+                projectId={selectedProject?.id || ""}
+                onCodeUpdate={(newContent) => {
+                  if (selectedFile) {
+                    setSelectedFile({ ...selectedFile, content: newContent });
+                  }
+                }}
+              />
+              
+              {/* AI Chat */}
+              <div className="flex-1 min-h-0">
+                <AIChat
+                  selectedModel={selectedModel}
+                  selectedFile={selectedFile}
+                  projectId={selectedProject?.id}
+                />
+              </div>
+            </div>
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>

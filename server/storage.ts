@@ -37,6 +37,7 @@ export class MemStorage implements IStorage {
     const defaultModels: AIModel[] = [
       { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", provider: "google", apiKey: null, isActive: true },
       { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", provider: "google", apiKey: null, isActive: true },
+      { id: "supa-ai", name: "SupaAI", provider: "supa", apiKey: null, isActive: true },
       { id: "amazon-q-developer", name: "Amazon Q Developer", provider: "amazon", apiKey: null, isActive: true },
       { id: "copilot-gpt-4", name: "Microsoft Copilot", provider: "microsoft", apiKey: null, isActive: true },
       { id: "deepseek-coder", name: "DeepSeek Coder", provider: "deepseek", apiKey: null, isActive: true },

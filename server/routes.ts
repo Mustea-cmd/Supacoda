@@ -210,6 +210,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI Direct Code Edit
+  app.post("/api/ai/edit-code", async (req, res) => {
+    try {
+      const { model, fileId, instruction, projectId } = req.body;
+      
+      if (!model || !fileId || !instruction) {
+        return res.status(400).json({ message: "Model, fileId, and instruction are required" });
+      }
+
+      // Get the current file
+      const file = await storage.getFile(fileId);
+      if (!file) {
+        return res.status(404).json({ message: "File not found" });
+      }
+
+      // Use AI to edit the code
+      const editResponse = await aiService.editCode(model, file.content || "", instruction, file.language || "javascript");
+      
+      // Update the file with the new content
+      const updatedFile = await storage.updateFile(fileId, { content: editResponse.content });
+      
+      // Save conversation if projectId is provided
+      if (projectId) {
+        const conversationData = insertAIConversationSchema.parse({
+          projectId,
+          model,
+          messages: [
+            { role: "user", content: `Edit code: ${instruction}` },
+            { role: "assistant", content: `Code updated successfully. ${editResponse.explanation || ""}` }
+          ],
+        });
+        await storage.createConversation(conversationData);
+      }
+
+      res.json({
+        file: updatedFile,
+        explanation: editResponse.explanation,
+        changes: editResponse.changes
+      });
+    } catch (error) {
+      console.error("AI Code Edit error:", error);
+      res.status(500).json({ message: "Failed to edit code" });
+    }
+  });
+
+  // AI Apply Code Suggestions
+  app.post("/api/ai/apply-suggestion", async (req, res) => {
+    try {
+      const { fileId, newContent, model, projectId } = req.body;
+      
+      if (!fileId || !newContent) {
+        return res.status(400).json({ message: "FileId and newContent are required" });
+      }
+
+      // Update the file with AI-generated content
+      const updatedFile = await storage.updateFile(fileId, { content: newContent });
+      
+      // Save conversation if projectId is provided
+      if (projectId && model) {
+        const conversationData = insertAIConversationSchema.parse({
+          projectId,
+          model,
+          messages: [
+            { role: "user", content: "Apply AI code suggestion" },
+            { role: "assistant", content: "Code suggestion applied successfully." }
+          ],
+        });
+        await storage.createConversation(conversationData);
+      }
+
+      res.json(updatedFile);
+    } catch (error) {
+      console.error("AI Apply Suggestion error:", error);
+      res.status(500).json({ message: "Failed to apply suggestion" });
+    }
+  });
+
   // AI Conversations
   app.get("/api/projects/:projectId/conversations", async (req, res) => {
     try {
