@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import GlobalSearch from "@/components/editor/GlobalSearch";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import FileExplorer from "@/components/editor/FileExplorer";
@@ -14,14 +15,18 @@ import MiniMap from "@/components/editor/MiniMap";
 import AIModelSelector from "@/components/editor/AIModelSelector";
 import StatusBar from "@/components/editor/StatusBar";
 import Terminal from "@/components/editor/Terminal";
+
 import { File, Project } from "@shared/schema";
 
 export default function Editor() {
+
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>("gemini-2.5-flash");
   const [showTerminal, setShowTerminal] = useState(true);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: projects, isLoading: projectsLoading } = useQuery({
@@ -97,6 +102,12 @@ export default function Editor() {
           <span className="hover:text-white cursor-pointer">Help</span>
         </div>
         <div className="ml-auto flex items-center space-x-4">
+          <button
+            className="bg-slate-700 hover:bg-slate-600 text-xs text-white px-2 py-1 rounded"
+            onClick={() => setShowSearch((v) => !v)}
+          >
+            {showSearch ? "Close Search" : "Search"}
+          </button>
           <div className="flex items-center space-x-2">
             <i className="fab fa-github text-slate-400"></i>
             <span className="text-xs text-slate-400">GitHub Ready</span>
@@ -104,6 +115,13 @@ export default function Editor() {
           <div className="w-2 h-2 rounded-full bg-green-500"></div>
         </div>
       </div>
+
+      {/* Global Search Overlay */}
+      {showSearch && (
+        <div className="absolute z-50 left-0 top-8 w-full bg-slate-900/95 border-b border-slate-700 shadow-lg">
+          <GlobalSearch />
+        </div>
+      )}
 
       {/* Main Application Area */}
       <div className="flex-1 flex">
@@ -262,5 +280,6 @@ export default function Editor() {
         }}
       />
     </div>
+  );
   );
 }
