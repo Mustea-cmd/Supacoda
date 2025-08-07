@@ -5,6 +5,8 @@ import { aiService } from "./services/aiService";
 import { insertProjectSchema, insertFileSchema, insertAIConversationSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Git Source Control
+  app.use("/api/git", (await import("./routes/git")).default);
   // Projects
   app.get("/api/projects", async (req, res) => {
     try {
