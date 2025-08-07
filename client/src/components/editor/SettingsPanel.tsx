@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 
 const defaultSettings = {
   editor: {
@@ -28,8 +29,19 @@ const defaultSettings = {
 };
 
 const SETTINGS_KEY = "supacoda_settings";
+const API_URL = "/api/settings";
 
-function loadSettings() {
+async function loadSettingsFromAPI() {
+  try {
+    const res = await axios.get(API_URL);
+    if (res.data) return res.data;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function loadSettingsFromLocal() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     return raw ? JSON.parse(raw) : defaultSettings;
@@ -38,16 +50,47 @@ function loadSettings() {
   }
 }
 
-function saveSettings(settings: any) {
+async function saveSettingsToAPI(settings: any) {
+  try {
+    await axios.post(API_URL, settings);
+  } catch {
+    // ignore
+  }
+}
+
+function saveSettingsToLocal(settings: any) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
-export default function SettingsPanel() {
-  const [settings, setSettings] = useState(loadSettings());
 
+export default function SettingsPanel() {
+  const [settings, setSettings] = useState(defaultSettings);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load settings from API, fallback to localStorage
   useEffect(() => {
-    saveSettings(settings);
-  }, [settings]);
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      let loaded = await loadSettingsFromAPI();
+      if (!loaded) loaded = loadSettingsFromLocal();
+      if (mounted) {
+        setSettings(loaded || defaultSettings);
+        setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  // Save settings to API and localStorage on change
+  useEffect(() => {
+    if (!loading) {
+      saveSettingsToAPI(settings);
+      saveSettingsToLocal(settings);
+    }
+  }, [settings, loading]);
 
   // Handlers for each section
   const handleEditorChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -100,6 +143,12 @@ export default function SettingsPanel() {
     setSettings(defaultSettings);
   };
 
+  if (loading) {
+    return <div className="p-4">Loading settings...</div>;
+  }
+  if (error) {
+    return <div className="p-4 text-red-500">{error}</div>;
+  }
   return (
     <div className="p-4 space-y-6">
       <h2 className="text-xl font-bold mb-2">Settings</h2>

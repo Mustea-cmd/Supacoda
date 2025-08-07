@@ -1,3 +1,5 @@
+  // User Settings
+  app.use("/api/settings", (await import("./routes/settings")).default);
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -7,6 +9,8 @@ import { insertProjectSchema, insertFileSchema, insertAIConversationSchema } fro
 export async function registerRoutes(app: Express): Promise<Server> {
   // Git Source Control
   app.use("/api/git", (await import("./routes/git")).default);
+  // User Settings
+  app.use("/api/settings", (await import("./routes/settings")).default);
   // Projects
   app.get("/api/projects", async (req, res) => {
     try {
