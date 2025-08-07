@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import SourceControlPanel from "@/components/editor/SourceControlPanel";
+import SettingsPanel from "@/components/editor/SettingsPanel";
 import GlobalSearch from "@/components/editor/GlobalSearch";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -29,6 +30,7 @@ export default function Editor() {
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showSourceControl, setShowSourceControl] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: projects, isLoading: projectsLoading } = useQuery({
@@ -85,6 +87,14 @@ export default function Editor() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p>Loading CodeAssist AI...</p>
+        </div>
+        <div className="ml-4">
+          <button
+            className="bg-slate-700 hover:bg-slate-600 text-xs text-white px-2 py-1 rounded"
+            onClick={() => setShowSettings((v) => !v)}
+          >
+            {showSettings ? "Close Settings" : "Settings"}
+          </button>
         </div>
       </div>
     );
@@ -198,10 +208,12 @@ export default function Editor() {
 
           <ResizableHandle />
 
-          {/* AI Panel or Source Control Panel */}
+          {/* Right Sidebar: Source Control, Settings, or AI Panel */}
           <ResizablePanel defaultSize={20} minSize={15}>
             <div className="h-full bg-slate-800 border-l border-slate-700 flex flex-col">
-              {showSourceControl ? (
+              {showSettings ? (
+                <SettingsPanel />
+              ) : showSourceControl ? (
                 <SourceControlPanel />
               ) : (
                 <>
