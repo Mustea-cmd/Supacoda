@@ -1,11 +1,16 @@
 import { useState, useEffect } from "react";
 import SourceControlPanel from "@/components/editor/SourceControlPanel";
 import SettingsPanel from "@/components/editor/SettingsPanel";
+import ExtensionManager from "@/components/editor/ExtensionManager";
 import GlobalSearch from "@/components/editor/GlobalSearch";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import FileExplorer from "@/components/editor/FileExplorer";
 import MonacoEditor from "@/components/editor/MonacoEditor";
+import { useEffect as useReactEffect } from "react";
+// Extensions: built-in and remote registry auto-discovery
+import { activateAll } from "@/extensions";
+import { autoDiscoverAndInstall } from "@/extensions/autoDiscover";
 import ProblemsPanel, { Problem } from "@/components/editor/ProblemsPanel";
 import AIChat from "@/components/editor/AIChat";
 import AICodeEditor from "@/components/editor/AICodeEditor";
@@ -23,6 +28,21 @@ import { File, Project } from "@shared/schema";
 
 export default function Editor() {
 
+  // On mount, activate all built-in extensions and auto-discover new ones from remote registry
+  useReactEffect(() => {
+    // Monaco is loaded globally as window.monaco after the editor is mounted
+    const tryActivate = () => {
+      const monaco = (window as any).monaco;
+      if (monaco) {
+        activateAll(monaco);
+        autoDiscoverAndInstall(monaco); // Now fetches from remote registry if available
+      } else {
+        setTimeout(tryActivate, 500);
+      }
+    };
+    tryActivate();
+  }, []);
+
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -32,6 +52,7 @@ export default function Editor() {
   const [showSearch, setShowSearch] = useState(false);
   const [showSourceControl, setShowSourceControl] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showExtensionManager, setShowExtensionManager] = useState(false);
   const queryClient = useQueryClient();
   // Problems panel state
   const [problems, setProblems] = useState<Problem[]>([]);
@@ -106,6 +127,10 @@ export default function Editor() {
 
   return (
     <div className="h-screen bg-slate-900 text-slate-200 font-sans overflow-hidden flex flex-col">
+      {/*
+        Remote Extension Registry: Auto-discovery will fetch and install new extensions from the remote registry if available.
+        See client/src/extensions/remoteRegistry.ts for details.
+      */}
       {/* Top Menu Bar */}
       <div className="h-8 bg-slate-800 flex items-center px-4 text-sm border-b border-slate-700">
         <div className="flex space-x-6">
@@ -116,6 +141,9 @@ export default function Editor() {
           <span className="hover:text-white cursor-pointer">Run</span>
           <span className="hover:text-white cursor-pointer">Terminal</span>
           <span className="hover:text-white cursor-pointer">Help</span>
+          <span className="hover:text-blue-400 cursor-pointer" onClick={() => setShowExtensionManager(v => !v)}>
+            {showExtensionManager ? "Close Extensions" : "Extensions"}
+          </span>
         </div>
         <div className="ml-auto flex items-center space-x-4">
           <button
@@ -146,159 +174,15 @@ export default function Editor() {
       )}
 
       {/* Main Application Area */}
-      <div className="flex-1 flex">
-        <ResizablePanelGroup direction="horizontal">
-          {/* Left Sidebar */}
-          <ResizablePanel defaultSize={20} minSize={15}>
-            <div className="h-full bg-slate-800 border-r border-slate-700 flex flex-col">
-              {/* AI Model Selection */}
-              <div className="p-3 border-b border-slate-700">
-                <AIModelSelector
-                  selectedModel={selectedModel}
-                  onModelChange={setSelectedModel}
-                />
-              </div>
-
-              {/* File Explorer */}
-              <div className="flex-1 overflow-auto">
-                <FileExplorer
-                  project={selectedProject}
-                  files={Array.isArray(files) ? files : []}
-                  selectedFile={selectedFile}
-                  onFileSelect={setSelectedFile}
-                  loading={filesLoading}
-                />
-              </div>
-
-              {/* File Templates */}
-              <div className="border-t border-slate-700">
-                <FileTemplates
-                  project={selectedProject}
-                  selectedModel={selectedModel}
-                  onFileCreated={() => {
-                    // Refresh files list
-                    queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProject?.id}/files`] });
-                  }}
-                />
-              </div>
-            </div>
-          </ResizablePanel>
-
-          <ResizableHandle />
-
-          {/* Main Editor Area */}
-          <ResizablePanel defaultSize={60}>
-            <div className="h-full flex flex-col">
-              <ResizablePanelGroup direction="vertical">
-                {/* Editor */}
-                <ResizablePanel defaultSize={showTerminal ? 70 : 100}>
-                  <>
-                    <MonacoEditor
-                      file={selectedFile}
-                      onFileChange={(updatedFile) => setSelectedFile(updatedFile)}
-                      // @ts-ignore
-                      onLintMarkers={setProblems}
-                    />
-                    <button
-                      className="bg-yellow-700 hover:bg-yellow-600 text-xs text-white px-2 py-1 rounded mt-1 ml-2 w-fit"
-                      onClick={() => setShowProblems((v) => !v)}
-                    >
-                      {showProblems ? "Hide Problems" : `Show Problems (${problems.length})`}
-                    </button>
-                    {showProblems && (
-                      <ProblemsPanel
-                        problems={problems}
-                        onGoToLine={(line) => {
-                          // Scroll to line in Monaco
-                          const editor = document.querySelector('.monaco-editor');
-                          if (editor) {
-                            // Monaco API is available via window.monaco
-                            // This is a simple scroll, for full jump use Monaco API
-                            editor.scrollTop = (line - 1) * 20;
-                          }
-                        }}
-                      />
-                    )}
-                  </>
-                </ResizablePanel>
-
-                {showTerminal && <ResizableHandle />}
-
-                {/* Terminal */}
-                {showTerminal && (
-                  <ResizablePanel defaultSize={30} minSize={20}>
-                    <Terminal onClose={() => setShowTerminal(false)} />
-                  </ResizablePanel>
-                )}
-              </ResizablePanelGroup>
-            </div>
-          </ResizablePanel>
-
-          <ResizableHandle />
-
-          {/* Right Sidebar: Source Control, Settings, or AI Panel */}
-          <ResizablePanel defaultSize={20} minSize={15}>
-            <div className="h-full bg-slate-800 border-l border-slate-700 flex flex-col">
-              {showSettings ? (
-                <SettingsPanel />
-              ) : showSourceControl ? (
-                <SourceControlPanel />
-              ) : (
-                <>
-                  {/* AI Code Editor */}
-                  <AICodeEditor
-                    file={selectedFile}
-                    selectedModel={selectedModel}
-                    projectId={selectedProject?.id || ""}
-                    onCodeUpdate={(newContent) => {
-                      if (selectedFile) {
-                        setSelectedFile({ ...selectedFile, content: newContent });
-                      }
-                    }}
-                  />
-
-                  {/* Quick Actions */}
-                  <div className="border-t border-slate-700">
-                    <QuickActions
-                      file={selectedFile}
-                      selectedModel={selectedModel}
-                      projectId={selectedProject?.id || ""}
-                      onCodeUpdate={(newContent) => {
-                        if (selectedFile) {
-                          setSelectedFile({ ...selectedFile, content: newContent });
-                        }
-                      }}
-                    />
-                  </div>
-
-                  {/* AI Code Suggestions */}
-                  <div className="border-t border-slate-700">
-                    <AICodeSuggestions
-                      file={selectedFile}
-                      selectedModel={selectedModel}
-                      projectId={selectedProject?.id || ""}
-                      onCodeUpdate={(newContent) => {
-                        if (selectedFile) {
-                          setSelectedFile({ ...selectedFile, content: newContent });
-                        }
-                      }}
-                    />
-                  </div>
-                  
-                  {/* AI Chat */}
-                  <div className="flex-1 min-h-0 border-t border-slate-700">
-                    <AIChat
-                      selectedModel={selectedModel}
-                      selectedFile={selectedFile}
-                      projectId={selectedProject?.id}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </div>
+      {showExtensionManager ? (
+        <div className="flex-1 bg-slate-900">
+          <ExtensionManager />
+        </div>
+      ) : (
+        <div className="flex-1 flex">
+          {/* ...existing code... */}
+        </div>
+      )}
 
       {/* Status Bar */}
       <StatusBar
