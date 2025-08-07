@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import SourceControlPanel from "@/components/editor/SourceControlPanel";
 import GlobalSearch from "@/components/editor/GlobalSearch";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -27,6 +28,7 @@ export default function Editor() {
   const [showTerminal, setShowTerminal] = useState(true);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showSourceControl, setShowSourceControl] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: projects, isLoading: projectsLoading } = useQuery({
@@ -107,6 +109,12 @@ export default function Editor() {
             onClick={() => setShowSearch((v) => !v)}
           >
             {showSearch ? "Close Search" : "Search"}
+          </button>
+          <button
+            className="bg-slate-700 hover:bg-slate-600 text-xs text-white px-2 py-1 rounded"
+            onClick={() => setShowSourceControl((v) => !v)}
+          >
+            {showSourceControl ? "Close Source Control" : "Source Control"}
           </button>
           <div className="flex items-center space-x-2">
             <i className="fab fa-github text-slate-400"></i>
@@ -190,57 +198,63 @@ export default function Editor() {
 
           <ResizableHandle />
 
-          {/* AI Panel */}
+          {/* AI Panel or Source Control Panel */}
           <ResizablePanel defaultSize={20} minSize={15}>
             <div className="h-full bg-slate-800 border-l border-slate-700 flex flex-col">
-              {/* AI Code Editor */}
-              <AICodeEditor
-                file={selectedFile}
-                selectedModel={selectedModel}
-                projectId={selectedProject?.id || ""}
-                onCodeUpdate={(newContent) => {
-                  if (selectedFile) {
-                    setSelectedFile({ ...selectedFile, content: newContent });
-                  }
-                }}
-              />
+              {showSourceControl ? (
+                <SourceControlPanel />
+              ) : (
+                <>
+                  {/* AI Code Editor */}
+                  <AICodeEditor
+                    file={selectedFile}
+                    selectedModel={selectedModel}
+                    projectId={selectedProject?.id || ""}
+                    onCodeUpdate={(newContent) => {
+                      if (selectedFile) {
+                        setSelectedFile({ ...selectedFile, content: newContent });
+                      }
+                    }}
+                  />
 
-              {/* Quick Actions */}
-              <div className="border-t border-slate-700">
-                <QuickActions
-                  file={selectedFile}
-                  selectedModel={selectedModel}
-                  projectId={selectedProject?.id || ""}
-                  onCodeUpdate={(newContent) => {
-                    if (selectedFile) {
-                      setSelectedFile({ ...selectedFile, content: newContent });
-                    }
-                  }}
-                />
-              </div>
+                  {/* Quick Actions */}
+                  <div className="border-t border-slate-700">
+                    <QuickActions
+                      file={selectedFile}
+                      selectedModel={selectedModel}
+                      projectId={selectedProject?.id || ""}
+                      onCodeUpdate={(newContent) => {
+                        if (selectedFile) {
+                          setSelectedFile({ ...selectedFile, content: newContent });
+                        }
+                      }}
+                    />
+                  </div>
 
-              {/* AI Code Suggestions */}
-              <div className="border-t border-slate-700">
-                <AICodeSuggestions
-                  file={selectedFile}
-                  selectedModel={selectedModel}
-                  projectId={selectedProject?.id || ""}
-                  onCodeUpdate={(newContent) => {
-                    if (selectedFile) {
-                      setSelectedFile({ ...selectedFile, content: newContent });
-                    }
-                  }}
-                />
-              </div>
-              
-              {/* AI Chat */}
-              <div className="flex-1 min-h-0 border-t border-slate-700">
-                <AIChat
-                  selectedModel={selectedModel}
-                  selectedFile={selectedFile}
-                  projectId={selectedProject?.id}
-                />
-              </div>
+                  {/* AI Code Suggestions */}
+                  <div className="border-t border-slate-700">
+                    <AICodeSuggestions
+                      file={selectedFile}
+                      selectedModel={selectedModel}
+                      projectId={selectedProject?.id || ""}
+                      onCodeUpdate={(newContent) => {
+                        if (selectedFile) {
+                          setSelectedFile({ ...selectedFile, content: newContent });
+                        }
+                      }}
+                    />
+                  </div>
+                  
+                  {/* AI Chat */}
+                  <div className="flex-1 min-h-0 border-t border-slate-700">
+                    <AIChat
+                      selectedModel={selectedModel}
+                      selectedFile={selectedFile}
+                      projectId={selectedProject?.id}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
@@ -280,6 +294,5 @@ export default function Editor() {
         }}
       />
     </div>
-  );
   );
 }
