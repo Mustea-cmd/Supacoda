@@ -1,6 +1,7 @@
+
 # Overview
 
-CodeAssist AI is a comprehensive, AI-powered code editor application that provides a full IDE experience with advanced AI assistance capabilities. The platform features syntax highlighting, intelligent file management, multi-model AI integration, terminal functionality, and productivity-enhancing tools like quick actions, code suggestions, keyboard shortcuts, and a command palette. It supports 7 different AI models for code generation, explanation, optimization, and real-time assistance.
+Supacoda is a comprehensive, AI-powered code editor application that provides a full IDE experience with advanced AI assistance capabilities. The platform features syntax highlighting, intelligent file management, multi-model AI integration, terminal functionality, and productivity-enhancing tools like quick actions, code suggestions, keyboard shortcuts, and a command palette. It supports 7 different AI models for code generation, explanation, optimization, and real-time assistance.
 
 # User Preferences
 
