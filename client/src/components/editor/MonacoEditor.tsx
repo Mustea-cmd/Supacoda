@@ -1,28 +1,341 @@
-  // Python LSP client (scaffold)
-  const lspClientRef = useRef<PythonLSPClient | null>(null);
+  // Python LSP integration (diagnostics, completion, hover, signature help)
+  const lspClientRef = useRef<any>(null);
   useEffect(() => {
-    if (file?.language === "python") {
-      lspClientRef.current = new PythonLSPClient();
-      lspClientRef.current.connect();
-      // Example: send initialize message (LSP spec)
-      lspClientRef.current.send({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "initialize",
-        params: {
-          processId: null,
-          rootUri: null,
-          capabilities: {},
+    if (!file || file.language !== "python" || !monaco || !editor) return;
+    // Connect to LSP
+    lspClientRef.current = (window as any).PythonLSPClient ? new (window as any).PythonLSPClient() : null;
+    if (!lspClientRef.current) return;
+    lspClientRef.current.connect?.();
+    lspClientRef.current.send?.({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        processId: null,
+        rootUri: null,
+        capabilities: {},
+      },
+    });
+    lspClientRef.current.send?.({
+      jsonrpc: "2.0",
+      method: "textDocument/didOpen",
+      params: {
+        textDocument: {
+          uri: `file:///${file.name}`,
+          languageId: "python",
+          version: 1,
+          text: file.content || "",
         },
-      });
-      // Listen for messages (future: diagnostics, hover, etc.)
-      lspClientRef.current.onMessage = (msg) => {
-        // TODO: handle LSP messages and update Monaco as needed
-        // console.log("LSP message", msg);
-      };
-      return () => lspClientRef.current?.close();
-    }
-  }, [file?.language]);
+      },
+    });
+
+    // Register completion provider
+    const completionProvider = monaco.languages.registerCompletionItemProvider("python", {
+      triggerCharacters: [".", "(", "[", ",", " ", "=", ":"],
+      provideCompletionItems: async (model: any, position: any) => {
+        lspClientRef.current.send?.({
+          jsonrpc: "2.0",
+          id: 2,
+          method: "textDocument/completion",
+          params: {
+            textDocument: { uri: `file:///${file.name}` },
+            position: { line: position.lineNumber - 1, character: position.column - 1 },
+            context: { triggerKind: 1 },
+          },
+        });
+        return { suggestions: [] };
+      },
+    });
+
+    // Register hover provider
+    const hoverProvider = monaco.languages.registerHoverProvider("python", {
+      provideHover: async (model: any, position: any) => {
+        lspClientRef.current.send?.({
+          jsonrpc: "2.0",
+          id: 3,
+          method: "textDocument/hover",
+          params: {
+            textDocument: { uri: `file:///${file.name}` },
+            position: { line: position.lineNumber - 1, character: position.column - 1 },
+          },
+        });
+        return null;
+      },
+    });
+
+    // Register signature help provider
+    const signatureProvider = monaco.languages.registerSignatureHelpProvider("python", {
+      signatureHelpTriggerCharacters: ["(", ","],
+      provideSignatureHelp: async (model: any, position: any) => {
+        lspClientRef.current.send?.({
+          jsonrpc: "2.0",
+          id: 4,
+          method: "textDocument/signatureHelp",
+          params: {
+            textDocument: { uri: `file:///${file.name}` },
+            position: { line: position.lineNumber - 1, character: position.column - 1 },
+          },
+        });
+        return null;
+      },
+    });
+
+    lspClientRef.current.onMessage = (msg: any) => {
+      let data = msg;
+      if (typeof msg === "string") {
+        try { data = JSON.parse(msg); } catch { return; }
+      }
+      // Diagnostics
+      if (data.method === "textDocument/publishDiagnostics" && data.params) {
+        const diagnostics = data.params.diagnostics || [];
+        if (monaco && editor) {
+          monaco.editor.setModelMarkers(
+            editor.getModel(),
+            "python-lsp",
+            diagnostics.map((d: any) => ({
+              startLineNumber: d.range.start.line + 1,
+              endLineNumber: d.range.end.line + 1,
+              startColumn: d.range.start.character + 1,
+              endColumn: d.range.end.character + 1,
+              message: d.message,
+              severity: d.severity === 1 ? 8 : 4,
+              source: d.source || "pyright",
+            }))
+          );
+        }
+        if (onLintMarkers) {
+          onLintMarkers(
+            diagnostics.map((d: any) => ({
+              message: d.message,
+              line: d.range.start.line + 1,
+              column: d.range.start.character + 1,
+              severity: d.severity === 1 ? "error" : "warning",
+              source: d.source || "pyright",
+            }))
+          );
+        }
+      }
+      // Completion response
+      if (data.id === 2 && data.result) {
+        const items = Array.isArray(data.result) ? data.result : data.result.items;
+        if (items && monaco && editor) {
+          const suggestions = items.map((item: any) => ({
+            label: item.label,
+            kind: monaco.languages.CompletionItemKind[item.kind] || monaco.languages.CompletionItemKind.Text,
+            insertText: item.insertText || item.label,
+            detail: item.detail,
+            documentation: item.documentation?.value || item.documentation,
+            range: editor.getModel().getWordUntilPosition(editor.getPosition()),
+          }));
+          // @ts-ignore
+          monaco.languages.registerCompletionItemProvider("python", {
+            provideCompletionItems: () => ({ suggestions }),
+          });
+        }
+      }
+      // Hover response
+      if (data.id === 3 && data.result) {
+        if (data.result.contents && monaco && editor) {
+          // @ts-ignore
+          monaco.languages.registerHoverProvider("python", {
+            provideHover: () => ({
+              contents: Array.isArray(data.result.contents)
+                ? data.result.contents.map((c: any) => ({ value: c.value || c }))
+                : [{ value: data.result.contents.value || data.result.contents }],
+              range: editor.getModel().getWordAtPosition(editor.getPosition()),
+            }),
+          });
+        }
+      }
+      // Signature help response
+      if (data.id === 4 && data.result) {
+        if (data.result.signatures && monaco && editor) {
+          // @ts-ignore
+          monaco.languages.registerSignatureHelpProvider("python", {
+            provideSignatureHelp: () => ({
+              signatures: data.result.signatures,
+              activeSignature: data.result.activeSignature,
+              activeParameter: data.result.activeParameter,
+            }),
+          });
+        }
+      }
+    };
+    return () => {
+      lspClientRef.current?.close?.();
+      completionProvider.dispose();
+      hoverProvider.dispose();
+      signatureProvider.dispose();
+    };
+  }, [file, monaco, editor, onLintMarkers]);
+  // Python LSP client (scaffold)
+  // Only declare lspClientRef once at the top of the component
+  // ...existing code...
+  useEffect(() => {
+    // All variables are in component scope
+    // file, monaco, editor, onLintMarkers are props or from hooks
+    if (!file || file.language !== "python" || !monaco || !editor) return;
+
+    lspClientRef.current = new PythonLSPClient();
+    lspClientRef.current.connect();
+    lspClientRef.current.send({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        processId: null,
+        rootUri: null,
+        capabilities: {},
+      },
+    });
+    lspClientRef.current.send({
+  // LSP logic will be handled inside the MonacoEditor function
+        textDocument: {
+          uri: `file:///${file.name}`,
+          languageId: "python",
+          version: 1,
+          text: file.content || "",
+        },
+      },
+    });
+
+    const completionProvider = monaco.languages.registerCompletionItemProvider("python", {
+      triggerCharacters: [".", "(", "[", ",", " ", "=", ":"],
+      provideCompletionItems: async (model: any, position: any) => {
+        const params = {
+          textDocument: { uri: `file:///${file.name}` },
+          position: { line: position.lineNumber - 1, character: position.column - 1 },
+          context: { triggerKind: 1 },
+        };
+        lspClientRef.current?.send({
+          jsonrpc: "2.0",
+          id: 2,
+          method: "textDocument/completion",
+          params,
+        });
+        return { suggestions: [] };
+      },
+    });
+
+    const hoverProvider = monaco.languages.registerHoverProvider("python", {
+      provideHover: async (model: any, position: any) => {
+        lspClientRef.current?.send({
+          jsonrpc: "2.0",
+          id: 3,
+          method: "textDocument/hover",
+          params: {
+            textDocument: { uri: `file:///${file.name}` },
+            position: { line: position.lineNumber - 1, character: position.column - 1 },
+          },
+        });
+        return null;
+      },
+    });
+
+    const signatureProvider = monaco.languages.registerSignatureHelpProvider("python", {
+      signatureHelpTriggerCharacters: ["(", ","],
+      provideSignatureHelp: async (model: any, position: any) => {
+        lspClientRef.current?.send({
+          jsonrpc: "2.0",
+          id: 4,
+          method: "textDocument/signatureHelp",
+          params: {
+            textDocument: { uri: `file:///${file.name}` },
+            position: { line: position.lineNumber - 1, character: position.column - 1 },
+          },
+        });
+        return null;
+      },
+    });
+
+    lspClientRef.current.onMessage = (msg) => {
+      let data = msg;
+      if (typeof msg === "string") {
+        try { data = JSON.parse(msg); } catch { return; }
+      }
+      // Diagnostics
+      if (data.method === "textDocument/publishDiagnostics" && data.params) {
+        const diagnostics = data.params.diagnostics || [];
+        if (monaco && editor) {
+          monaco.editor.setModelMarkers(
+            editor.getModel(),
+            "python-lsp",
+            diagnostics.map((d: any) => ({
+              startLineNumber: d.range.start.line + 1,
+              endLineNumber: d.range.end.line + 1,
+              startColumn: d.range.start.character + 1,
+              endColumn: d.range.end.character + 1,
+              message: d.message,
+              severity: d.severity === 1 ? 8 : 4,
+              source: d.source || "pyright",
+            }))
+          );
+        }
+        if (onLintMarkers) {
+          onLintMarkers(
+            diagnostics.map((d: any) => ({
+              message: d.message,
+              line: d.range.start.line + 1,
+              column: d.range.start.character + 1,
+              severity: d.severity === 1 ? "error" : "warning",
+              source: d.source || "pyright",
+            }))
+          );
+        }
+      }
+      // Completion response
+      if (data.id === 2 && data.result) {
+        const items = Array.isArray(data.result) ? data.result : data.result.items;
+        if (items && monaco && editor) {
+          const suggestions = items.map((item: any) => ({
+            label: item.label,
+            kind: monaco.languages.CompletionItemKind[item.kind] || monaco.languages.CompletionItemKind.Text,
+            insertText: item.insertText || item.label,
+            detail: item.detail,
+            documentation: item.documentation?.value || item.documentation,
+            range: editor.getModel().getWordUntilPosition(editor.getPosition()),
+          }));
+          // @ts-ignore
+          monaco.languages.registerCompletionItemProvider("python", {
+            provideCompletionItems: () => ({ suggestions }),
+          });
+        }
+      }
+      // Hover response
+      if (data.id === 3 && data.result) {
+        if (data.result.contents && monaco && editor) {
+          // @ts-ignore
+          monaco.languages.registerHoverProvider("python", {
+            provideHover: () => ({
+              contents: Array.isArray(data.result.contents)
+                ? data.result.contents.map((c: any) => ({ value: c.value || c }))
+                : [{ value: data.result.contents.value || data.result.contents }],
+              range: editor.getModel().getWordAtPosition(editor.getPosition()),
+            }),
+          });
+        }
+      }
+      // Signature help response
+      if (data.id === 4 && data.result) {
+        if (data.result.signatures && monaco && editor) {
+          // @ts-ignore
+          monaco.languages.registerSignatureHelpProvider("python", {
+            provideSignatureHelp: () => ({
+              signatures: data.result.signatures,
+              activeSignature: data.result.activeSignature,
+              activeParameter: data.result.activeParameter,
+            }),
+          });
+        }
+      }
+    };
+    return () => {
+      lspClientRef.current?.close();
+      completionProvider.dispose();
+      hoverProvider.dispose();
+      signatureProvider.dispose();
+    };
+  }, [file, monaco, editor, onLintMarkers]);
 import { PythonLSPClient } from "@/lib/lspClient";
   // Python LSP client (scaffold)
   const lspClientRef = useRef<PythonLSPClient | null>(null);
@@ -63,6 +376,174 @@ interface MonacoEditorProps {
 }
 
 export default function MonacoEditor({ file, onFileChange, onLintMarkers }: MonacoEditorProps) {
+  // ...existing hooks and state...
+  const lspClientRef = useRef<any>(null);
+
+  // Place LSP useEffect after monaco/editor are defined
+  useEffect(() => {
+    if (!file || file.language !== "python" || !monaco || !editor) return;
+    lspClientRef.current = (window as any).PythonLSPClient ? new (window as any).PythonLSPClient() : null;
+    if (!lspClientRef.current) return;
+    lspClientRef.current.connect?.();
+    lspClientRef.current.send?.({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        processId: null,
+        rootUri: null,
+        capabilities: {},
+      },
+    });
+    lspClientRef.current.send?.({
+      jsonrpc: "2.0",
+      method: "textDocument/didOpen",
+      params: {
+        textDocument: {
+          uri: `file:///${file.name}`,
+          languageId: "python",
+          version: 1,
+          text: file.content || "",
+        },
+      },
+    });
+
+    const completionProvider = monaco.languages.registerCompletionItemProvider("python", {
+      triggerCharacters: [".", "(", "[", ",", " ", "=", ":"],
+      provideCompletionItems: async (model: any, position: any) => {
+        lspClientRef.current.send?.({
+          jsonrpc: "2.0",
+          id: 2,
+          method: "textDocument/completion",
+          params: {
+            textDocument: { uri: `file:///${file.name}` },
+            position: { line: position.lineNumber - 1, character: position.column - 1 },
+            context: { triggerKind: 1 },
+          },
+        });
+        return { suggestions: [] };
+      },
+    });
+
+    const hoverProvider = monaco.languages.registerHoverProvider("python", {
+      provideHover: async (model: any, position: any) => {
+        lspClientRef.current.send?.({
+          jsonrpc: "2.0",
+          id: 3,
+          method: "textDocument/hover",
+          params: {
+            textDocument: { uri: `file:///${file.name}` },
+            position: { line: position.lineNumber - 1, character: position.column - 1 },
+          },
+        });
+        return null;
+      },
+    });
+
+    const signatureProvider = monaco.languages.registerSignatureHelpProvider("python", {
+      signatureHelpTriggerCharacters: ["(", ","],
+      provideSignatureHelp: async (model: any, position: any) => {
+        lspClientRef.current.send?.({
+          jsonrpc: "2.0",
+          id: 4,
+          method: "textDocument/signatureHelp",
+          params: {
+            textDocument: { uri: `file:///${file.name}` },
+            position: { line: position.lineNumber - 1, character: position.column - 1 },
+          },
+        });
+        return null;
+      },
+    });
+
+    lspClientRef.current.onMessage = (msg: any) => {
+      let data = msg;
+      if (typeof msg === "string") {
+        try { data = JSON.parse(msg); } catch { return; }
+      }
+      // Diagnostics
+      if (data.method === "textDocument/publishDiagnostics" && data.params) {
+        const diagnostics = data.params.diagnostics || [];
+        if (monaco && editor) {
+          monaco.editor.setModelMarkers(
+            editor.getModel(),
+            "python-lsp",
+            diagnostics.map((d: any) => ({
+              startLineNumber: d.range.start.line + 1,
+              endLineNumber: d.range.end.line + 1,
+              startColumn: d.range.start.character + 1,
+              endColumn: d.range.end.character + 1,
+              message: d.message,
+              severity: d.severity === 1 ? 8 : 4,
+              source: d.source || "pyright",
+            }))
+          );
+        }
+        if (onLintMarkers) {
+          onLintMarkers(
+            diagnostics.map((d: any) => ({
+              message: d.message,
+              line: d.range.start.line + 1,
+              column: d.range.start.character + 1,
+              severity: d.severity === 1 ? "error" : "warning",
+              source: d.source || "pyright",
+            }))
+          );
+        }
+      }
+      // Completion response
+      if (data.id === 2 && data.result) {
+        const items = Array.isArray(data.result) ? data.result : data.result.items;
+        if (items && monaco && editor) {
+          const suggestions = items.map((item: any) => ({
+            label: item.label,
+            kind: monaco.languages.CompletionItemKind[item.kind] || monaco.languages.CompletionItemKind.Text,
+            insertText: item.insertText || item.label,
+            detail: item.detail,
+            documentation: item.documentation?.value || item.documentation,
+            range: editor.getModel().getWordUntilPosition(editor.getPosition()),
+          }));
+          // @ts-ignore
+          monaco.languages.registerCompletionItemProvider("python", {
+            provideCompletionItems: () => ({ suggestions }),
+          });
+        }
+      }
+      // Hover response
+      if (data.id === 3 && data.result) {
+        if (data.result.contents && monaco && editor) {
+          // @ts-ignore
+          monaco.languages.registerHoverProvider("python", {
+            provideHover: () => ({
+              contents: Array.isArray(data.result.contents)
+                ? data.result.contents.map((c: any) => ({ value: c.value || c }))
+                : [{ value: data.result.contents.value || data.result.contents }],
+              range: editor.getModel().getWordAtPosition(editor.getPosition()),
+            }),
+          });
+        }
+      }
+      // Signature help response
+      if (data.id === 4 && data.result) {
+        if (data.result.signatures && monaco && editor) {
+          // @ts-ignore
+          monaco.languages.registerSignatureHelpProvider("python", {
+            provideSignatureHelp: () => ({
+              signatures: data.result.signatures,
+              activeSignature: data.result.activeSignature,
+              activeParameter: data.result.activeParameter,
+            }),
+          });
+        }
+      }
+    };
+    return () => {
+      lspClientRef.current?.close?.();
+      completionProvider.dispose();
+      hoverProvider.dispose();
+      signatureProvider.dispose();
+    };
+  }, [file, monaco, editor, onLintMarkers]);
   // Linting and formatting state
   const [lintMarkers, setLintMarkers] = useState<any[]>([]);
   const [lintEnabled, setLintEnabled] = useState(() => {
