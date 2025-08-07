@@ -6,6 +6,8 @@ const defaultSettings = {
     theme: "light",
     fontSize: 14,
     tabSize: 2,
+    linting: true,
+    formatting: true,
   },
   ai: {
     defaultProvider: "gemini",
@@ -103,6 +105,9 @@ export default function SettingsPanel() {
         [name]: type === "checkbox" ? checked : value,
       },
     }));
+    // Sync lint/format toggles to localStorage for MonacoEditor
+    if (name === "linting") localStorage.setItem("supacoda_linting", String(checked));
+    if (name === "formatting") localStorage.setItem("supacoda_formatting", String(checked));
   };
 
   const handleAIChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -169,6 +174,14 @@ export default function SettingsPanel() {
         <label className="block mb-1">
           Tab Size:
           <input type="number" name="tabSize" value={settings.editor.tabSize} min={2} max={8} onChange={handleEditorChange} className="ml-2 w-16" />
+        </label>
+        <label className="block mb-1">
+          <input type="checkbox" name="linting" checked={settings.editor.linting} onChange={handleEditorChange} className="mr-2" />
+          Enable Linting
+        </label>
+        <label className="block mb-1">
+          <input type="checkbox" name="formatting" checked={settings.editor.formatting} onChange={handleEditorChange} className="mr-2" />
+          Enable Formatting
         </label>
       </section>
       {/* AI Settings */}

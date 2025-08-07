@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import FileExplorer from "@/components/editor/FileExplorer";
 import MonacoEditor from "@/components/editor/MonacoEditor";
+import ProblemsPanel, { Problem } from "@/components/editor/ProblemsPanel";
 import AIChat from "@/components/editor/AIChat";
 import AICodeEditor from "@/components/editor/AICodeEditor";
 import QuickActions from "@/components/editor/QuickActions";
@@ -32,6 +33,9 @@ export default function Editor() {
   const [showSourceControl, setShowSourceControl] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const queryClient = useQueryClient();
+  // Problems panel state
+  const [problems, setProblems] = useState<Problem[]>([]);
+  const [showProblems, setShowProblems] = useState(false);
 
   const { data: projects, isLoading: projectsLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -188,10 +192,34 @@ export default function Editor() {
               <ResizablePanelGroup direction="vertical">
                 {/* Editor */}
                 <ResizablePanel defaultSize={showTerminal ? 70 : 100}>
-                  <MonacoEditor
-                    file={selectedFile}
-                    onFileChange={(updatedFile) => setSelectedFile(updatedFile)}
-                  />
+                  <>
+                    <MonacoEditor
+                      file={selectedFile}
+                      onFileChange={(updatedFile) => setSelectedFile(updatedFile)}
+                      // @ts-ignore
+                      onLintMarkers={setProblems}
+                    />
+                    <button
+                      className="bg-yellow-700 hover:bg-yellow-600 text-xs text-white px-2 py-1 rounded mt-1 ml-2 w-fit"
+                      onClick={() => setShowProblems((v) => !v)}
+                    >
+                      {showProblems ? "Hide Problems" : `Show Problems (${problems.length})`}
+                    </button>
+                    {showProblems && (
+                      <ProblemsPanel
+                        problems={problems}
+                        onGoToLine={(line) => {
+                          // Scroll to line in Monaco
+                          const editor = document.querySelector('.monaco-editor');
+                          if (editor) {
+                            // Monaco API is available via window.monaco
+                            // This is a simple scroll, for full jump use Monaco API
+                            editor.scrollTop = (line - 1) * 20;
+                          }
+                        }}
+                      />
+                    )}
+                  </>
                 </ResizablePanel>
 
                 {showTerminal && <ResizableHandle />}

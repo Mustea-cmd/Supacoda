@@ -3,6 +3,8 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupSearchWebSocket } from "./services/searchWebSocket";
 import { setupGitWebSocket } from "./services/gitWebSocket";
+import { startPythonLSP } from "./services/lspService";
+import { WebSocketServer } from "ws";
 
 const app = express();
 app.use(express.json());
@@ -54,6 +56,20 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
+  
+// LSP WebSocket endpoint for Python
+const lspWss = new WebSocketServer({ noServer: true });
+lspWss.on("connection", (ws) => {
+  startPythonLSP(ws);
+});
+
+server.on("upgrade", (request, socket, head) => {
+  if (request.url?.startsWith("/lsp/python")) {
+    lspWss.handleUpgrade(request, socket, head, (ws) => {
+      lspWss.emit("connection", ws, request);
+    });
+  }
+});
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
