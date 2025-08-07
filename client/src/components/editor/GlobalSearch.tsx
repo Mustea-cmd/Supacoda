@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useRef } from 'react';
 
 interface SearchResult {
   file: string;
@@ -10,19 +11,42 @@ const GlobalSearch: React.FC = () => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
 
-  const handleSearch = async (e: React.FormEvent) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // TODO: Replace with backend API call or workspace search logic
-    // Example: fetch(`/api/search?q=${encodeURIComponent(query)}`)
-    setTimeout(() => {
-      setResults([
-        { file: 'src/App.tsx', line: 10, preview: 'const App = () => {' },
-        { file: 'src/components/Editor.tsx', line: 42, preview: 'function handleSave() {' },
-      ]);
+    setResults([]);
+
+    // Close previous connection if any
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
+
+    // Use ws:// for dev, wss:// for prod if needed
+    const ws = new window.WebSocket(`ws://${window.location.host}`);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'search', query }));
+    };
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'results' && Array.isArray(data.results)) {
+          setResults(data.results);
+          setLoading(false);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    ws.onerror = () => {
       setLoading(false);
-    }, 1000);
+    };
+    ws.onclose = () => {
+      setLoading(false);
+    };
   };
 
   return (
